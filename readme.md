@@ -4,10 +4,12 @@ Requires **Vivado 2024.2**
 1. Choose a folder and clone the repo
 `git clone https://github.com/Claudiu0707/scs-project.git`
 2. Open Vivado, close any open project and run the following command in the **TCL Console**:
+   
 	**Windows:** `source C:/Users/<USER_NAME>/<PATH_TO_PROJECT>/<PROJECT_NAME>/scripts/create_project.tcl `
+   
 	**Linux:** `source /home/<USER_NAME>/<PATH_TO_PROJECT>/<PROJECT_NAME>/scripts/create_project.tcl`
 
-** Rebuild the project after every `git pull`, `git checkout`, or`git merge`using the same procedure.** 
+**Rebuild the project after every `git pull`, `git checkout`, or`git merge`using the same procedure.** 
 
 ------------
 
