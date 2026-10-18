@@ -1,11 +1,27 @@
+### Project Setup
+Requires **Vivado 2024.2**
 
-Before every commit, run this command in the TCL Console:
-`write_project_tcl -force -no_copy_sources -target_proj_dir ./vivado <absolute_path_to_project_root>/scripts/create_project.tcl`
+1. Choose a folder and clone the repo
+`git clone https://github.com/Claudiu0707/scs-project.git`
+2. Open Vivado, close any open project and run the following command in the **TCL Console**:
+	**Windows:** `source C:/Users/<USER_NAME>/<PATH_TO_PROJECT>/<PROJECT_NAME>/scripts/create_project.tcl `
+	**Linux:** `source /home/<USER_NAME>/<PATH_TO_PROJECT>/<PROJECT_NAME>/scripts/create_project.tcl`
 
-Windows example:
-`write_project_tcl -force -no_copy_sources -target_proj_dir ./vivado C:/Users/<USER_NAME>/Desktop/<PROJECT_NAME>/scripts/create_project.tcl`
+** Rebuild the project after every `git pull`, `git checkout`, or`git merge`using the same procedure.** 
 
-After pulling:
-- check the project directory: if folder vivado/ exists, delete it
-- open vivado home screen and run the following command in the TCL Console: `source C:/Users/<USER_NAME>/Desktop/<PROJECT_NAME>/scripts/setup.tcl`
-  for Linux: `source /home/<USER_NAME>/<SPECIFIC_PATH_TO_PROJECT_DIRECTORY>/<PROJECT_NAME>/scripts/setup.tcl`
+------------
+
+### Project Structure
+
+    scs-project/
+    ├── .gitignore
+    ├── .gitattributes
+    ├── scripts/
+    │   └── create_project.tcl
+    └── src/
+        ├── hdl/                 
+        ├── sim/                 
+        └── constraints/  
+
+#### Creating files
+When creating a new file in Vivado, change **File location** from ***Local to project*** to ***Choose location*** and pick the right folder in `src/` (for example, a VHD design file goes in `src/hdl/`) to ensure that the file is tracked by git.
