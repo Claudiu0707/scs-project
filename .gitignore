@@ -1,0 +1,28 @@
+# Generated Vivado project
+vivado/
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.gen/
+*.srcs/
+*.xpr
+
+# Outputs
+*.bit
+*.bin
+*.ltx
+*.dcp
+*.xsa
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
