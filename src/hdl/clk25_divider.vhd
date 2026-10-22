@@ -10,8 +10,8 @@ end clk25_divider;
 
 architecture Behavioral of clk25_divider is
 
-signal count: integer := 0;
-signal clk_temp: std_logic := 0;
+signal count:    integer := 0;
+signal clk_temp: std_logic := '0';
 begin
     process (clk_in)
     begin
