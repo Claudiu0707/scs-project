@@ -10,19 +10,19 @@ end clk25_divider;
 
 architecture Behavioral of clk25_divider is
 
-signal count:    integer := 0;
+signal count:    integer range 0 to 2 := 0;
 signal clk_temp: std_logic := '0';
 begin
+
     process (clk_in)
     begin
         if rising_edge(clk_in) then
             count <= count + 1;
             if count = 2 then
-                count   <= 0;
+                count <= 1;
                 clk_temp <= NOT clk_temp;
             end if;
         end if;
-    end process;
-    
+    end process; 
     clk_out <= clk_temp;
 end Behavioral;

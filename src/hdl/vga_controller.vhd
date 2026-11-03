@@ -17,7 +17,7 @@ architecture Behavioral of vga_controller is
 
 signal horizontal_count: integer := 0;
 signal vertical_count:   integer := 0;
-signal read_address:     integer := 0;
+signal read_addr_temp:     integer := 0;
 
 -- HSYNC and VSYNC signals are driven high when inactive
 signal hsync_temp:   std_logic := '1';
@@ -40,45 +40,36 @@ constant V_SYNC_PULSE:  integer := 2;
 begin    
     hsync     <= hsync_temp;
     vsync     <= vsync_temp;
-    read_addr <= read_address;
+    read_addr <= read_addr_temp;
     display   <= display_temp;
-    
+        
+    -- Update horizontal and vertical count 
     process (clk)
     begin
         if rising_edge(clk) then
             horizontal_count <= horizontal_count + 1;
-            if horizontal_count = H_TOTAL_SIZE then
+            if horizontal_count = H_TOTAL_SIZE - 1 then
                 horizontal_count <= 0;
                 vertical_count <= vertical_count + 1;
-                if vertical_count = V_TOTAL_SIZE then
+                if vertical_count = V_TOTAL_SIZE - 1 then
                     vertical_count <= 0;
-                end if;
-            end if;
-            
-            -- this section checks if the signal is inside the active area
-            if horizontal_count < H_ACTIVE_SIZE and vertical_count < V_ACTIVE_SIZE then
-                display_temp <= '1';
-                read_address <= read_address + 1; 
-                if read_address = 307200 then
-                    read_address <= 0;
-                end if;
-            else
-                display_temp <= '0';
-            end if;
-            
-            -- drive low the HSYNC and VSYNC signals after front porch for the specified durations
-            if horizontal_count >= H_ACTIVE_SIZE + H_FRONT_PORCH and 
-               horizontal_count <  H_ACTIVE_SIZE + H_FRONT_PORCH + H_SYNC_PULSE then
-                hsync_temp <= '0';
-            else
-                hsync_temp <= '1';
-            end if;
-            if vertical_count >= V_ACTIVE_SIZE + V_FRONT_PORCH and
-               vertical_count <  V_ACTIVE_SIZE + V_FRONT_PORCH + V_SYNC_PULSE then
-                vsync_temp <= '0'; 
-            else
-                vsync_temp <= '1';                  
+                end if; 
             end if;
         end if;
     end process;
+    
+    -- Compute pixel address and set the flag for valid region
+    display_temp <= '1' when horizontal_count < H_ACTIVE_SIZE and vertical_count < V_ACTIVE_SIZE else '0';
+    read_addr_temp <= vertical_count * 640 + horizontal_count when display_temp = '1' else 0; 
+    
+    
+    -- Drive the HSYNC and VSYNC signals
+    hsync_temp <= '0' when horizontal_count >= H_ACTIVE_SIZE + H_FRONT_PORCH and 
+                           horizontal_count < H_ACTIVE_SIZE + H_FRONT_PORCH + H_SYNC_PULSE
+                  else '1';
+    vsync_temp <= '0' when vertical_count >= V_ACTIVE_SIZE + V_FRONT_PORCH and
+                           vertical_count <  V_ACTIVE_SIZE + V_FRONT_PORCH + V_SYNC_PULSE 
+                  else '1';        
+
+    
 end Behavioral;
