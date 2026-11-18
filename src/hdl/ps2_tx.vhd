@@ -38,9 +38,9 @@ begin
     ps2c <= ps2c_temp when ps2c_tri = '1' else 'Z';
     ps2d <= ps2d_temp when ps2d_tri = '1' else 'Z';
 
-    -- change current state
-    -- note: if there are weird bugs when it comes to the rx/tx of the ps2 device, try to change from 2 clk sources (clk, ps2c)
-    --       to only one clock source (clk): keep a short history of the last 2 values of the ps2c signal and check if a transition from 1 to 0 occured)
+
+    -- note to future me: if there are weird bugs when it comes to the rx/tx of the ps2 device, try to change from 2 clk sources (clk, ps2c)
+    --                    to only one clock source (clk): keep a short history of the last 2 values of the ps2c signal and check if a transition from 1 to 0 occured)
     process (ps2c, clk, rst, wr_ps2)
     begin
         if rst = '1' then
@@ -57,7 +57,7 @@ begin
                     end if;
                     
                 when rts  =>
-                    -- stay in this state for at least aprox. 160us
+                    -- stay in this state for at least 160us
                     if rising_edge (clk) then
                         if line_down_cnt = 1 then
                             state <= start;
@@ -93,7 +93,7 @@ begin
         end if;
     end process;
     
-    -- set signals according to the state
+    
     process (state, rst)
     begin
         if rst = '1' then
