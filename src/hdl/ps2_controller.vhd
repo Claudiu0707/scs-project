@@ -34,9 +34,21 @@ architecture Behavioral of ps2_controller is
     signal wd_ce_hold_state, wd_ce_rst_state, wd_ce_ack_command, wd_ce_pck_rec_state: std_logic := '0';
     signal wd_done_hold_state, wd_done_rst_state, wd_done_ack_command, wd_done_pck_rec_state: std_logic := '0';
     
+    -- init state related signals
+    signal init_step: natural range 0 to 1 := 0;
+    signal diag_rec: std_logic := '0';
+    
+    -- reset state related signals
+    signal reset_step: natural range 0 to 2 := 0;
+    signal rst_cmd_sent: std_logic := '0';
+    
     -- setup state related signals
     signal setup_step: natural range 0 to 4 := 0;
     signal setup_done, setup_cmd1_sent, setup_cmd2_sent: std_logic := '0';
+    
+    -- echo state related signals
+    signal echo_step: natural range 0 to 1 := 0;
+    signal echo_cmd_sent: std_logic := '0';
     
     -- package receive state related signals
     signal pck_rec_step: natural range 0 to 3 := 0;
@@ -64,6 +76,11 @@ begin
         data_rx  => data_rx
     );
     
+    ps2_button_left  <= pck1(0);
+    ps2_button_right <= pck1(1);
+    ps2_direction_x  <= pck1(4) & pck2;
+    ps2_direction_y  <= pck1(5) & pck3;
+    
     process1: 
     process (clk)
     begin
@@ -75,27 +92,43 @@ begin
     end process;
     
     
-    -- note to me: consume second byte 0x00 coming from ps2 internal test in setup state/init state (your choice but do it)
     process2:
-    process (current_state, wd_done_hold_state, wd_done_rst_state,
-             rx_done, tx_done, data_rx, setup_step, pck_rec_step)
+    process (current_state, wd_done_hold_state, wd_done_rst_state, wd_done_ack_command, wd_done_pck_rec_state,
+             rx_done, tx_done, setup_step, pck_rec_step, reset_step, init_step)
     begin
         case current_state is
             ----------------------------------------------------------------------------------------------------
             when init_state  =>
                 wd_hold_state_rst <= '0';
-                if  wd_ce_hold_state = '0' then 
-                    wd_ce_hold_state <= '1';
+                if init_step = 0 then
+                    if  wd_ce_hold_state = '0' then 
+                        wd_ce_hold_state <= '1';
+                    else 
+                        if wd_done_hold_state = '1' then 
+                            next_state <= reset_state;
+                            wd_ce_hold_state <= '0';
+                        elsif rx_done = '1' AND data_rx = x"AA" then
+                            init_step <= 1;
+                            wd_hold_state_rst <= '1';
+                            wd_ce_hold_state <= '0';
+                        end if;
+                    end if;                
                 else 
-                    if wd_done_hold_state = '1' then 
-                        next_state <= reset_state;
-                        wd_ce_hold_state <= '0';
-                    elsif rx_done = '1' AND data_rx = x"AA" then
-                        next_state <= setup_state;
-                        wd_hold_state_rst <= '1';
-                        wd_ce_hold_state <= '0';
-                    end if;
+                    if  wd_ce_hold_state = '0' then 
+                        wd_ce_hold_state <= '1';
+                    else 
+                        if wd_done_hold_state = '1' then 
+                            next_state <= reset_state;
+                            wd_ce_hold_state <= '0';
+                        elsif rx_done = '1' AND data_rx = x"00" then
+                            next_state <= setup_state;
+                            wd_hold_state_rst <= '1';
+                            wd_ce_hold_state <= '0';
+                        end if;
+                    end if;                    
                 end if;
+                
+
                 
             ----------------------------------------------------------------------------------------------------
             when setup_state =>
@@ -223,15 +256,71 @@ begin
                 
             ---------------------------------------------------------------------------------------------------- 
             when reset_state =>
-                null; -- todo
+                if reset_step = 0 then
+                    if rst_cmd_sent = '0' then
+                        data_tx <= x"FF";
+                        wr_ps2  <= '1';
+                        rst_cmd_sent <= '1';
+                    elsif tx_done = '1' then
+                        wr_ps2 <= '0';
+                        reset_step <= 1;
+                    end if;
+                else
+                    if wd_ce_hold_state = '0' then
+                        wd_ce_hold_state <= '1';
+                    else
+                        if wd_done_hold_state = '1' then
+                            reset_step <= 0;
+                            wd_ce_hold_state <= '0';
+                            wd_hold_state_rst <= '1';
+                            next_state <= reset_state;
+                        elsif rx_done = '1' AND data_rx = x"FA" then
+                            wd_ce_hold_state <= '0';
+                            wd_hold_state_rst <= '1';
+                            
+                            if setup_done = '0' then
+                                next_state <= setup_state;
+                            else
+                                next_state <= pck_receive_state;
+                            end if;
+                        end if;
+                    end if;    
+                end if;
                 
             ----------------------------------------------------------------------------------------------------
             when echo_state =>
-                null; -- todo
+                if echo_step = 0 then
+                    if echo_cmd_sent = '0' then
+                        data_tx <= x"EE";
+                        wr_ps2 <= '1';
+                        echo_cmd_sent <= '1';
+                    elsif tx_done = '1' then
+                        wr_ps2 <= '0';
+                        echo_cmd_sent <= '0';
+                        echo_step <= 1;
+                    end if;
+                else
+                    if wd_ce_ack_command = '0' then
+                        wd_ce_ack_command <= '1';
+                    else 
+                        if wd_done_ack_command = '1' then
+                            next_state <= reset_state;
+                            wd_ce_ack_command <= '0';
+                        elsif rx_done = '1' AND data_rx = x"FA" then
+                            wd_ack_command_rst <= '1';
+                            wd_ce_ack_command <= '0';
+                            if setup_done = '0' then
+                                next_state <= setup_state;
+                            else
+                                next_state <= pck_receive_state;
+                            end if;
+                        end if;
+                    end if;        
+                end if;   
         end case;
     end process;
 
-    
+
     wd1_rst <= rst OR wd_hold_state_rst;
     wd2_rst <= rst OR wd_rst_state_rst;
     wd3_rst <= rst OR wd_ack_command_rst;
