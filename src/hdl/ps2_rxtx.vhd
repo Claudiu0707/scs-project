@@ -13,6 +13,7 @@ entity ps2_rxtx is
         
         rx_error: out std_logic;
         rx_done:  out std_logic;
+        tx_error: out std_logic;
         tx_done:  out std_logic;
         data_rx:  out std_logic_vector(7 downto 0)
     );
@@ -24,6 +25,7 @@ begin
     ps2_rx_unit:
         entity WORK.ps2_rx port map (
                 rst          => rst,
+                clk          => clk,
                 tx_idle      => tx_idle,
                 ps2c         => ps2c,
                 ps2d         => ps2d,
@@ -41,7 +43,8 @@ begin
                     ps2d         => ps2d,
                     data_package => data_tx,
                     tx_idle      => tx_idle,
-                    tx_done      => tx_done
+                    tx_done      => tx_done,
+                    tx_error     => tx_error
         );
 
 end Behavioral;

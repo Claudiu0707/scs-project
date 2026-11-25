@@ -22,7 +22,7 @@ end top_module;
 
 architecture Structural of top_module is
 signal data_ready: std_logic := '0';
-signal ps2_direction_x, ps2_direction_y: std_logic_vector(8 downto 0) := (others => '0');
+signal ps2_x, ps2_y: std_logic_vector(8 downto 0) := (others => '0');
 begin
     vga_module_entity: 
     entity WORK.vga_module port map (
@@ -43,7 +43,7 @@ begin
         data_ready => data_ready,
         ps2_button_left  => BTNL,
         ps2_button_right => BTNR,
-        ps2_direction_x  => ps2_direction_x,
-        ps2_direction_y  => ps2_direction_y
+        ps2_x  => ps2_x,
+        ps2_y  => ps2_y
     );
 end Structural;

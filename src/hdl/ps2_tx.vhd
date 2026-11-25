@@ -10,8 +10,9 @@ entity ps2_tx is
         ps2d:        inout std_logic; -- ps2 device data line
         data_package:  in std_logic_vector(7 downto 0); -- package to be transmitted
         
-        tx_idle: out std_logic;       -- signals receiver component that data and clock line are free/busy
-        tx_done: out std_logic        -- signals the end of a transmission
+        tx_idle:  out std_logic;       -- signals receiver component that data and clock line are free/busy
+        tx_done:  out std_logic;        -- signals the end of a transmission
+        tx_error: out std_logic
      );
 end ps2_tx;
 
@@ -31,50 +32,60 @@ architecture Behavioral of ps2_tx is
     signal full_package: std_logic_vector(8 downto 0);
     signal parity_bit: std_logic := '1';
     
+    signal ps2_clk_history: std_logic_vector(2 downto 0) := "111";
+    
 begin
     parity_bit <= NOT (data_package(0) XOR data_package(1) XOR data_package(2) XOR data_package(3)
                    XOR data_package(4) XOR data_package(5) XOR data_package(6) XOR data_package(7));
         
     ps2c <= ps2c_temp when ps2c_tri = '1' else 'Z';
     ps2d <= ps2d_temp when ps2d_tri = '1' else 'Z';
-
-
-    -- note to future me: if there are weird bugs when it comes to the rx/tx of the ps2 device, try to change from 2 clk sources (clk, ps2c)
-    --                    to only one clock source (clk): keep a short history of the last 2 values of the ps2c signal and check if a transition from 1 to 0 occured)
-    process (ps2c, clk, rst, wr_ps2)
+    
+    process (clk, rst)
     begin
         if rst = '1' then
-            state <= idle;
-        else 
+            state     <= idle;
+            tx_idle   <= '1';
+            tx_done   <= '0';
+            tx_error  <= '0';
+            ps2c_tri  <= '0';
+            ps2d_tri  <= '0';
+            ps2c_temp <= '0';
+            ps2d_temp <= '0';
+            ps2_clk_history <= "111";
+        elsif rising_edge(clk) then
+            ps2_clk_history <=  ps2_clk_history(1 downto 0) & ps2c;
             case state is
                 when idle =>
+                    tx_idle <= '1';  
+                    tx_error <= '0';
+                    tx_done <= '0';
                     if wr_ps2 = '1' then
+                        tx_idle   <= '0';
                         state <= rts;
                         line_down_cnt <= LINE_DOWN_CNT_INIT;
-                        full_package <= parity_bit & data_package;
-                    else 
-                        state <= state; 
+                        full_package  <= parity_bit & data_package;
                     end if;
-                    
                 when rts  =>
-                    -- stay in this state for at least 160us
-                    if rising_edge (clk) then
-                        if line_down_cnt = 1 then
-                            state <= start;
-                            ps2d_temp <= '0';     
-                        else 
-                            line_down_cnt <= line_down_cnt - 1;
-                        end if;
+                    ps2c_tri  <= '1';
+                    ps2c_temp <= '0';
+                    if line_down_cnt = 1 then
+                        state <= start;  
+                        ps2d_temp <= '0';  
+                        ps2d_tri  <= '1';
+                    else 
+                        line_down_cnt <= line_down_cnt - 1;
                     end if;
-                    
                 when start =>
-                    if falling_edge (ps2c) then 
+                    ps2c_tri  <= '0';
+                    if (ps2_clk_history(2) = '1' AND ps2_clk_history(1) = '0') then 
+                        ps2d_temp <= full_package(0);
+                        full_package <= '0' & full_package(8 downto 1);
+                        package_cnt <= PACKAGE_CNT_INIT - 1;
                         state <= transmit;
-                        package_cnt <= PACKAGE_CNT_INIT;
                     end if;
-                    
                 when transmit =>
-                    if falling_edge(ps2c) then
+                    if (ps2_clk_history(2) = '1' AND ps2_clk_history(1) = '0') then 
                         ps2d_temp <= full_package(0);
                         full_package <= '0' & full_package(8 downto 1);
                         if package_cnt = 0 then
@@ -83,57 +94,18 @@ begin
                             package_cnt <= package_cnt - 1;
                         end if;
                     end if;
-                    
                 when stop =>
-                    if falling_edge(ps2c) then
-                        state <= idle;
-                        ps2d_temp <= '1';      
+                    if (ps2_clk_history(2) = '1' AND ps2_clk_history(1) = '0') then 
+                        if ps2d_tri = '1' then
+                            ps2d_tri <= '0';
+                        else              
+                            if ps2d /= '0' then    
+                                tx_error <= '1';  
+                            end if;        
+                            tx_done <= '1';
+                            state <= idle;
+                        end if;
                     end if;
-            end case;
-        end if;
-    end process;
-    
-    
-    process (state, rst)
-    begin
-        if rst = '1' then
-            tx_idle   <= '1';
-            tx_done   <= '0';
-            ps2c_tri  <= '0';
-            ps2d_tri  <= '0';
-            ps2c_temp <= '0';
-        else 
-            case state is
-                when idle =>
-                    tx_idle   <= '1';
-                    tx_done   <= '0';
-                    ps2c_tri  <= '0';
-                    ps2d_tri  <= '0';
-                    ps2c_temp <= '0';
-                when rts  =>
-                    tx_idle   <= '0';
-                    tx_done   <= '0';
-                    ps2c_tri  <= '1';
-                    ps2d_tri  <= '0';
-                    ps2c_temp <= '0';
-                when start =>
-                    tx_idle   <= '0';
-                    tx_done   <= '0';
-                    ps2c_tri  <= '0';
-                    ps2d_tri  <= '1';
-                    ps2c_temp <= '0';
-                when transmit =>
-                    tx_idle   <= '0';
-                    tx_done   <= '0';
-                    ps2c_tri  <= '0';
-                    ps2d_tri  <= '1';
-                    ps2c_temp <= '0';
-                when stop =>
-                    tx_idle   <= '1';
-                    tx_done   <= '1';
-                    ps2c_tri  <= '0';
-                    ps2d_tri  <= '0';
-                    ps2c_temp <= '0';
             end case;
         end if;
     end process;
